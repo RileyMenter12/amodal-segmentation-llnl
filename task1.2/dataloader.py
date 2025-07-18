@@ -88,10 +88,17 @@ class ModalAmodalDataset(Dataset):
         rgb_image = Image.open(sample['rgb_path']).convert('RGB')
         # Load panoptic segmentation
         panoptic_seg = Image.open(sample['segmentation_path'])
-        panoptic_array = np.array(panoptic_seg)
-        # Create modal mask for specific object
-        modal_mask = (panoptic_array == sample['object_id']).astype(np.uint8)
-        modal_mask = Image.fromarray(modal_mask * 255)  # Convert to 0-255 range
+        panoptic_array = np.array(panoptic_seg)  # Fix typo here
+        rgb_array = np.array(rgb_image)
+
+        # Create a binary mask for the object
+        object_mask = (panoptic_array == sample['object_id'])  # shape: (H, W)
+
+        # Broadcast mask to RGB channels
+        color_modal_mask = rgb_array * object_mask[:, :, None]  # shape: (H, W, 3)
+
+        # Convert back to PIL image
+        modal_mask = Image.fromarray(color_modal_mask.astype(np.uint8))
         # Load amodal mask
         amodal_mask = Image.open(sample['amodal_path']).convert('RGB')
         # Apply transforms
@@ -105,8 +112,8 @@ class ModalAmodalDataset(Dataset):
             modal_tensor = transforms.ToTensor()(modal_mask)
             amodal_tensor = transforms.ToTensor()(amodal_mask)
         # Ensure masks are single channel
-        if modal_tensor.shape[0] > 1:
-            modal_tensor = modal_tensor[0:1]  # Take first channel
+        # if modal_tensor.shape[0] > 1:
+        #     modal_tensor = modal_tensor[0:1]  # Take first channel
         # if amodal_tensor.shape[0] > 1:
         #     amodal_tensor = amodal_tensor[0:1]  # Take first channel
         return {
@@ -154,7 +161,7 @@ def create_dataloader(root_dir, split, batch_size=4, shuffle=True, num_workers=4
 # Example usage
 if __name__ == "__main__":
    # Example usage
-   root_directory = "/content/drive/MyDrive/Data_DSC2025"  # Replace with your actual path
+   root_directory = "/content/drive/MyDrive/LLNL_DSC/Unzipped"  # Replace with your actual path
    # Create dataloader
    train_loader = create_dataloader(
        root_dir=root_directory,
